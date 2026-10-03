@@ -3,60 +3,58 @@
 
 import os
 import discord
+from discord import app_commands
 from discord.ext import commands
 import aiohttp
 
 API_BASE = "https://prox0959.netlify.app/api/search"
 TOKEN = os.getenv("TOKEN")
 
-# Sadece bu sunucuda çalışsın — kendi sunucu ID'ni buraya yaz
-ALLOWED_GUILD_ID = 123456789012345678  # <<< BURAYI DEĞİŞTİR
-
-intents = discord.Intents.default()
-intents.message_content = True
-
-bot = commands.Bot(command_prefix="/", intents=intents, help_command=None)
+ALLOWED_GUILD_ID = 1546912458793287725  # Senin sunucun
 
 
-@bot.event
-async def on_ready():
-    # Rahatsız etme durumu
-    await bot.change_presence(
-        status=discord.Status.dnd,
-        activity=discord.Game(name="/idsorgu")
-    )
-    print(f"Bot hazır: {bot.user}")
+class MyBot(commands.Bot):
+    def __init__(self):
+        intents = discord.Intents.default()
+        intents.message_content = True
+        super().__init__(command_prefix="/", intents=intents, help_command=None)
+
+    async def setup_hook(self):
+        guild = discord.Object(id=ALLOWED_GUILD_ID)
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
+        print(f"Slash komutlar senkronize edildi: guild {ALLOWED_GUILD_ID}")
+
+    async def on_ready(self):
+        await self.change_presence(
+            status=discord.Status.dnd,
+            activity=discord.Game(name="/idsorgu")
+        )
+        print(f"Bot hazır: {self.user}")
 
 
-@bot.check
-async def globally_allowed(ctx):
-    # DM'de çalışmasın
-    if ctx.guild is None:
-        return False
-    # Sadece izin verilen sunucuda çalışsın
-    if ctx.guild.id != ALLOWED_GUILD_ID:
-        return False
-    return True
+bot = MyBot()
 
 
-@bot.command(name="idsorgu")
-async def idsorgu(ctx, id: str = None):
-    if not id:
-        await ctx.reply("Kullanım: `/idsorgu <ID>`")
+@bot.tree.command(name="idsorgu", description="ID sorgular")
+@app_commands.describe(id="Sorgulanacak ID")
+async def idsorgu(interaction: discord.Interaction, id: str):
+    if interaction.guild is None or interaction.guild.id != ALLOWED_GUILD_ID:
+        await interaction.response.send_message("Bu komut burada kullanılamaz.", ephemeral=True)
         return
 
-    loading = await ctx.reply("Sorgulanıyor...")
+    await interaction.response.defer()
 
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(f"{API_BASE}?id={id}") as resp:
                 if resp.status != 200:
-                    await loading.edit(content=f"HTTP {resp.status}")
+                    await interaction.followup.send(f"HTTP {resp.status}")
                     return
                 data = await resp.json()
 
         if not data.get("success"):
-            await loading.edit(content="API başarısız yanıt döndü.")
+            await interaction.followup.send("API başarısız yanıt döndü.")
             return
 
         found = data.get("found", False)
@@ -81,24 +79,12 @@ async def idsorgu(ctx, id: str = None):
                 )
 
         embed.set_footer(text="Prox0959 ID Sorgu")
-        await loading.edit(content="", embed=embed)
+        await interaction.followup.send(embed=embed)
 
     except Exception as e:
         print(e)
-        await loading.edit(content=f"Hata: {e}")
-
-
-@bot.event
-async def on_command_error(ctx, error):
-    # CheckFailed / komut bulunamadı vs. sessizce yut — DM ve diğer sunucularda cevap vermesin
-    if isinstance(error, commands.CheckFailure):
-        return
-    if isinstance(error, commands.CommandNotFound):
-        return
-    # Diğer hataları sadece izin verilen sunucuda göster
-    if ctx.guild and ctx.guild.id == ALLOWED_GUILD_ID:
         try:
-            await ctx.reply(f"Hata: {error}")
+            await interaction.followup.send(f"Hata: {e}")
         except Exception:
             pass
 
