@@ -115,7 +115,6 @@ async def idsorgu(interaction: discord.Interaction, id: str):
                     inline=False,
                 )
 
-        embed.set_footer(text="Prox0959 ID Sorgu")
         await interaction.followup.send(embed=embed)
 
     except Exception as e:
