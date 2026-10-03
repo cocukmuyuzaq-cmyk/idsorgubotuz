@@ -3,18 +3,36 @@
 
 import os
 import time
+from threading import Thread
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
 import discord
 from discord import app_commands
 from discord.ext import commands
 import aiohttp
 
+# --- Render Web Service için port dinleyici (ZORUNLU) ---
+class Ping(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ok")
+    def log_message(self, *a):
+        pass
+
+def run_server():
+    port = int(os.getenv("PORT", 10000))
+    HTTPServer(("0.0.0.0", port), Ping).serve_forever()
+
+Thread(target=run_server, daemon=True).start()
+# --------------------------------------------------------
+
 API_BASE = "https://prox0959.netlify.app/api/search"
 TOKEN = os.getenv("TOKEN")
 
-ALLOWED_GUILD_ID = 1546912458793287725  # Senin sunucun
-COOLDOWN_SECONDS = 60  # 1 dakika
+ALLOWED_GUILD_ID = 1546912458793287725
+COOLDOWN_SECONDS = 60
 
-# {user_id: son_kullanma_zamani}
 cooldowns = {}
 
 
@@ -44,12 +62,10 @@ bot = MyBot()
 @bot.tree.command(name="idsorgu", description="ID sorgular")
 @app_commands.describe(id="Sorgulanacak ID")
 async def idsorgu(interaction: discord.Interaction, id: str):
-    # Sunucu kontrolü
     if interaction.guild is None or interaction.guild.id != ALLOWED_GUILD_ID:
         await interaction.response.send_message("Bu komut burada kullanılamaz.", ephemeral=True)
         return
 
-    # Cooldown kontrolü
     user_id = interaction.user.id
     now = time.time()
     last_used = cooldowns.get(user_id, 0)
