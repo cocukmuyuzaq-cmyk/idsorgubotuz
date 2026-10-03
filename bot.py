@@ -1,15 +1,13 @@
-# Kurulum: pip install discord.py python-dotenv aiohttp
-# .env dosyasına: DISCORD_TOKEN=TOKEN
+# Kurulum: pip install discord.py aiohttp
+# Render > Environment Variables kısmına: KEY = TOKEN , VALUE = bot_tokenin
 
 import os
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
 import aiohttp
 
-load_dotenv()
-
 API_BASE = "https://prox0959.netlify.app/api/search"
+TOKEN = os.getenv("TOKEN")  # Render Environment Variables'tan çekiyor
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -71,4 +69,4 @@ async def idsorgu(ctx, id: str = None):
         await loading.edit(content=f"Hata: {e}")
 
 
-bot.run(os.getenv("DISCORD_TOKEN"))
+bot.run(TOKEN)
