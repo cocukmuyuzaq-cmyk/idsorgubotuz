@@ -2,6 +2,7 @@
 # Render > Environment Variables: KEY = TOKEN , VALUE = bot_tokenin
 
 import os
+import time
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -11,6 +12,10 @@ API_BASE = "https://prox0959.netlify.app/api/search"
 TOKEN = os.getenv("TOKEN")
 
 ALLOWED_GUILD_ID = 1546912458793287725  # Senin sunucun
+COOLDOWN_SECONDS = 60  # 1 dakika
+
+# {user_id: son_kullanma_zamani}
+cooldowns = {}
 
 
 class MyBot(commands.Bot):
@@ -39,9 +44,25 @@ bot = MyBot()
 @bot.tree.command(name="idsorgu", description="ID sorgular")
 @app_commands.describe(id="Sorgulanacak ID")
 async def idsorgu(interaction: discord.Interaction, id: str):
+    # Sunucu kontrolü
     if interaction.guild is None or interaction.guild.id != ALLOWED_GUILD_ID:
         await interaction.response.send_message("Bu komut burada kullanılamaz.", ephemeral=True)
         return
+
+    # Cooldown kontrolü
+    user_id = interaction.user.id
+    now = time.time()
+    last_used = cooldowns.get(user_id, 0)
+    remaining = COOLDOWN_SECONDS - (now - last_used)
+
+    if remaining > 0:
+        await interaction.response.send_message(
+            f"⏳ Çok hızlısın! Tekrar kullanmak için **{int(remaining)} saniye** bekle.",
+            ephemeral=True
+        )
+        return
+
+    cooldowns[user_id] = now
 
     await interaction.response.defer()
 
