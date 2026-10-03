@@ -1,5 +1,5 @@
 # Kurulum: pip install discord.py aiohttp
-# Render > Environment Variables kısmına: KEY = TOKEN , VALUE = bot_tokenin
+# Render > Environment Variables: KEY = TOKEN , VALUE = bot_tokenin
 
 import os
 import discord
@@ -7,7 +7,10 @@ from discord.ext import commands
 import aiohttp
 
 API_BASE = "https://prox0959.netlify.app/api/search"
-TOKEN = os.getenv("TOKEN")  # Render Environment Variables'tan çekiyor
+TOKEN = os.getenv("TOKEN")
+
+# Sadece bu sunucuda çalışsın — kendi sunucu ID'ni buraya yaz
+ALLOWED_GUILD_ID = 123456789012345678  # <<< BURAYI DEĞİŞTİR
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -17,7 +20,23 @@ bot = commands.Bot(command_prefix="/", intents=intents, help_command=None)
 
 @bot.event
 async def on_ready():
+    # Rahatsız etme durumu
+    await bot.change_presence(
+        status=discord.Status.dnd,
+        activity=discord.Game(name="/idsorgu")
+    )
     print(f"Bot hazır: {bot.user}")
+
+
+@bot.check
+async def globally_allowed(ctx):
+    # DM'de çalışmasın
+    if ctx.guild is None:
+        return False
+    # Sadece izin verilen sunucuda çalışsın
+    if ctx.guild.id != ALLOWED_GUILD_ID:
+        return False
+    return True
 
 
 @bot.command(name="idsorgu")
@@ -67,6 +86,21 @@ async def idsorgu(ctx, id: str = None):
     except Exception as e:
         print(e)
         await loading.edit(content=f"Hata: {e}")
+
+
+@bot.event
+async def on_command_error(ctx, error):
+    # CheckFailed / komut bulunamadı vs. sessizce yut — DM ve diğer sunucularda cevap vermesin
+    if isinstance(error, commands.CheckFailure):
+        return
+    if isinstance(error, commands.CommandNotFound):
+        return
+    # Diğer hataları sadece izin verilen sunucuda göster
+    if ctx.guild and ctx.guild.id == ALLOWED_GUILD_ID:
+        try:
+            await ctx.reply(f"Hata: {error}")
+        except Exception:
+            pass
 
 
 bot.run(TOKEN)
