@@ -2,7 +2,6 @@
 # Render > Environment Variables: KEY = TOKEN , VALUE = bot_tokenin
 
 import os
-import time
 from threading import Thread
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -31,9 +30,6 @@ API_BASE = "https://prox0959.netlify.app/api/search"
 TOKEN = os.getenv("TOKEN")
 
 ALLOWED_GUILD_ID = 1546912458793287725
-COOLDOWN_SECONDS = 60
-
-cooldowns = {}
 
 
 class MyBot(commands.Bot):
@@ -66,20 +62,6 @@ async def idsorgu(interaction: discord.Interaction, id: str):
         await interaction.response.send_message("Bu komut burada kullanılamaz.", ephemeral=True)
         return
 
-    user_id = interaction.user.id
-    now = time.time()
-    last_used = cooldowns.get(user_id, 0)
-    remaining = COOLDOWN_SECONDS - (now - last_used)
-
-    if remaining > 0:
-        await interaction.response.send_message(
-            f"⏳ Çok hızlısın! Tekrar kullanmak için **{int(remaining)} saniye** bekle.",
-            ephemeral=True
-        )
-        return
-
-    cooldowns[user_id] = now
-
     await interaction.response.defer()
 
     try:
@@ -107,11 +89,10 @@ async def idsorgu(interaction: discord.Interaction, id: str):
         if found and matches:
             for i, m in enumerate(matches[:5]):
                 content = m.get("content", "")
-                dev = m.get("dev", "-")
                 line = m.get("lineNumber", "?")
                 embed.add_field(
                     name=f"Eşleşme #{i + 1} (Satır {line})",
-                    value=f"```{content}```\nKaynak: `{dev}`",
+                    value=f"```{content}```",
                     inline=False,
                 )
 
